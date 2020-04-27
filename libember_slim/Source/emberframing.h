@@ -11,7 +11,7 @@
 
 #include "api.h"
 #include "berio.h"
-
+#include "bytebuffer.h"
 
 // ======================================================
 //

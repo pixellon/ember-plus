@@ -8,7 +8,6 @@
 
 #include "ember.h"
 #include "emberinternal.h"
-
 // ====================================================================
 //
 // Internals

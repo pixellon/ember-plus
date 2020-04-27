@@ -10,6 +10,10 @@
 #define __LIBEMBER_SLIM_EMBERINTERNAL_H
 
 #include "bertypes.h"
+#include "api.h"
+#include "ber.h"
+#include "emberasyncreader.h"
+#include "emberframing.h"
 
 // ====================================================================
 //
