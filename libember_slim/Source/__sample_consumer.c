@@ -8,12 +8,25 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include <conio.h>
 #include <string.h>
 #include <limits.h>
 
+#if defined (_WIN32) || defined(WIN32)
+#include <conio.h>
 //$$ MSVCRT specific
 #include <WinSock2.h>
+#else
+#include <ctype.h>
+#include <arpa/inet.h>
+#define SOCKET int
+#define closesocket close
+#define _strdup strdup
+#define _stricmp strcasecmp
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/ip.h>
+#include <unistd.h>
+#endif
 
 #include "emberplus.h"
 #include "emberinternal.h"
@@ -55,16 +68,20 @@ static void onFailAssertion(pcstr pFileName, int lineNumber)
 
 static void initSockets()
 {
+#if defined (_WIN32) || defined(WIN32)
    //$$ MSVCRT specific
    WSADATA wsaData;
 
    WSAStartup(MAKEWORD(2, 2), &wsaData);
+#endif
 }
 
 static void shutdownSockets()
 {
+#if defined (_WIN32) || defined(WIN32)
    //$$ MSVCRT specific
    WSACleanup();
+#endif
 }
 
 
@@ -491,7 +508,7 @@ static void element_print(const Element *pThis, bool isVerbose)
    if(pThis->type == GlowElementType_Parameter)
    {
       pParameter = &pThis->glow.param;
-      printf_s("P %04ld %s\n", pThis->number, pParameter->pIdentifier);
+      printf_s("P %04d %s\n", pThis->number, pParameter->pIdentifier);
 
       if(isVerbose)
       {
@@ -532,7 +549,7 @@ static void element_print(const Element *pThis, bool isVerbose)
          if(fields & GlowFieldFlag_Type)
             printf_s("  type:             %d\n", pParameter->type);
          if(fields & GlowFieldFlag_StreamIdentifier)
-            printf_s("  streamIdentifier: %ld\n", pParameter->streamIdentifier);
+            printf_s("  streamIdentifier: %d\n", pParameter->streamIdentifier);
 
          if(fields & GlowFieldFlag_StreamDescriptor)
          {
@@ -553,7 +570,7 @@ static void element_print(const Element *pThis, bool isVerbose)
    }
    else if(pThis->type == GlowElementType_Node)
    {
-      printf_s("N %04ld %s\n", pThis->number, pThis->glow.node.pIdentifier);
+      printf_s("N %04d %s\n", pThis->number, pThis->glow.node.pIdentifier);
 
       if(isVerbose)
       {
@@ -568,7 +585,7 @@ static void element_print(const Element *pThis, bool isVerbose)
    else if(pThis->type == GlowElementType_Matrix)
    {
       pMatrix = &pThis->glow.matrix.matrix;
-      printf_s("M %04ld %s\n", pThis->number, pMatrix->pIdentifier);
+      printf_s("M %04d %s\n", pThis->number, pMatrix->pIdentifier);
 
       if(isVerbose)
       {
@@ -612,7 +629,7 @@ static void element_print(const Element *pThis, bool isVerbose)
    else if(pThis->type == GlowElementType_Function)
    {
       pFunction = &pThis->glow.function;
-      printf_s("F %04ld %s\n", pThis->number, pFunction->pIdentifier);
+      printf_s("F %04d %s\n", pThis->number, pFunction->pIdentifier);
 
       if(isVerbose)
       {
@@ -667,7 +684,7 @@ static void onNode(const GlowNode *pNode, GlowFieldFlags fields, const berint *p
    // if received element is a child of current cursor, print it
    if(memcmp(pPath, pSession->pCursorPath, pSession->cursorPathLength * sizeof(berint)) == 0
    && pathLength == pSession->cursorPathLength + 1)
-      printf_s("* N %04ld %s\n", pPath[pathLength - 1], pNode->pIdentifier);
+      printf_s("* N %04d %s\n", pPath[pathLength - 1], pNode->pIdentifier);
 
    pElement = element_findDescendant(&pSession->root, pPath, pathLength, &pParent);
 
@@ -706,7 +723,7 @@ static void onParameter(const GlowParameter *pParameter, GlowFieldFlags fields, 
    // if received element is a child of current cursor, print it
    if(memcmp(pPath, pSession->pCursorPath, pSession->cursorPathLength * sizeof(berint)) == 0
    && pathLength == pSession->cursorPathLength + 1)
-      printf_s("* P %04ld %s\n", pPath[pathLength - 1], pParameter->pIdentifier);
+      printf_s("* P %04d %s\n", pPath[pathLength - 1], pParameter->pIdentifier);
 
    pElement = element_findDescendant(&pSession->root, pPath, pathLength, &pParent);
 
@@ -787,7 +804,7 @@ static void onMatrix(const GlowMatrix *pMatrix, const berint *pPath, int pathLen
    // if received element is a child of current cursor, print it
    if(memcmp(pPath, pSession->pCursorPath, pSession->cursorPathLength * sizeof(berint)) == 0
    && pathLength == pSession->cursorPathLength + 1)
-      printf_s("* M %04ld %s\n", pPath[pathLength - 1], pMatrix->pIdentifier);
+      printf_s("* M %04d %s\n", pPath[pathLength - 1], pMatrix->pIdentifier);
 
    pElement = element_findDescendant(&pSession->root, pPath, pathLength, &pParent);
 
@@ -814,7 +831,7 @@ static void onTarget(const GlowSignal *pSignal, const berint *pPath, int pathLen
    // if signal resides in cursor element, print it
    if(memcmp(pPath, pSession->pCursorPath, pSession->cursorPathLength * sizeof(berint)) == 0
    && pathLength == pSession->cursorPathLength)
-      printf_s("* T %04ld\n", pSignal->number);
+      printf_s("* T %04d\n", pSignal->number);
 
    pElement = element_findDescendant(&pSession->root, pPath, pathLength, NULL);
 
@@ -832,7 +849,7 @@ static void onSource(const GlowSignal *pSignal, const berint *pPath, int pathLen
    // if signal resides in cursor element, print it
    if(memcmp(pPath, pSession->pCursorPath, pSession->cursorPathLength * sizeof(berint)) == 0
    && pathLength == pSession->cursorPathLength)
-      printf_s("* S %04ld\n", pSignal->number);
+      printf_s("* S %04d\n", pSignal->number);
 
    pElement = element_findDescendant(&pSession->root, pPath, pathLength, NULL);
 
@@ -858,11 +875,11 @@ static void onConnection(const GlowConnection *pConnection, const berint *pPath,
    if(memcmp(pPath, pSession->pCursorPath, pSession->cursorPathLength * sizeof(berint)) == 0
    && pathLength == pSession->cursorPathLength)
    {
-      printf_s("* C %04ld <- [", pConnection->target);
+      printf_s("* C %04d <- [", pConnection->target);
 
       for(index = 0; index < pConnection->sourcesLength; index++)
       {
-         printf_s("%04ld", pConnection->pSources[index]);
+         printf_s("%04d", pConnection->pSources[index]);
 
          if(index < pConnection->sourcesLength - 1)
             printf_s(", ");
@@ -906,7 +923,7 @@ static void onFunction(const GlowFunction *pFunction, const berint *pPath, int p
    // if received element is a child of current cursor, print it
    if(memcmp(pPath, pSession->pCursorPath, pSession->cursorPathLength * sizeof(berint)) == 0
    && pathLength == pSession->cursorPathLength + 1)
-      printf_s("* F %04ld %s\n", pPath[pathLength - 1], pFunction->pIdentifier);
+      printf_s("* F %04d %s\n", pPath[pathLength - 1], pFunction->pIdentifier);
 
    pElement = element_findDescendant(&pSession->root, pPath, pathLength, &pParent);
 
@@ -949,7 +966,7 @@ static void onInvocationResult(const GlowInvocationResult *pInvocationResult, vo
                   ? "error"
                   : "ok";
 
-   printf_s("* IR %04ld %s\n", pInvocationResult->invocationId, status);
+   printf_s("* IR %04d %s\n", pInvocationResult->invocationId, status);
 
    if(pInvocationResult->hasError == false)
    {
@@ -1342,11 +1359,13 @@ static void run(Session *pSession)
 {
    static char s_input[256];
    byte buffer[64];
-   int read;
+   int result;
    char ch;
    int inputLength = 0;
    bool isQuit = false;
+#if defined (_WIN32) || defined(WIN32)
    const struct timeval timeout = {0, 16 * 1000}; // 16 milliseconds timeout for select()
+#endif
    const int rxBufferSize = 1290; // max size of unescaped package
    fd_set fdset;
    int fdsReady;
@@ -1369,6 +1388,7 @@ static void run(Session *pSession)
 
    while(isQuit == false)
    {
+#if defined (_WIN32) || defined(WIN32)
       if(_kbhit())
       {
          ch = (char)_getch();
@@ -1399,7 +1419,7 @@ static void run(Session *pSession)
             {
                _putch(ch);
 
-               s_input[inputLength] = ch;
+	       s_input[inputLength] = ch;
                inputLength++;
             }
          }
@@ -1409,23 +1429,69 @@ static void run(Session *pSession)
          FD_ZERO(&fdset);
          FD_SET(sock, &fdset);
 
-         fdsReady = select(1, &fdset, NULL, NULL, &timeout);
+         fdsReady = select(sock+1, &fdset, NULL, NULL, &timeout);
+#else
+      if (1)
+      {
+         FD_ZERO(&fdset);
+         FD_SET(sock, &fdset);
+         FD_SET(0, &fdset);
 
-         if(fdsReady == 1) // socket is ready to read
+         fdsReady = select(sock+1, &fdset, NULL, NULL, NULL);
+#endif
+
+         if(fdsReady >= 1) // socket is ready to read
          {
             if(FD_ISSET(sock, &fdset))
             {
-               read = recv(sock, (char *)buffer, sizeof(buffer), 0);
+               result = recv(sock, (char *)buffer, sizeof(buffer), 0);
 
-               if(read > 0)
-                  glowReader_readBytes(pReader, buffer, read);
+               if(result > 0)
+                  glowReader_readBytes(pReader, buffer, result);
                else
                   isQuit = true;
             }
-         }
-         else if(fdsReady < 0) // connection lost
-         {
-            isQuit = true;
+#if defined (_WIN32) || defined(WIN32)
+#else
+            if(FD_ISSET(0, &fdset))
+            {
+               read(0, &ch, 1);
+               if(ch == '\n' || ch == '\r')
+               {
+                  printf_s("\n");
+
+                  s_input[inputLength] = 0;
+                  isQuit = handleInput(pSession, s_input);
+
+                  inputLength = 0;
+               }
+               else if(ch == '\b')
+               {
+                  if(inputLength > 0)
+                  {
+                     printf ("\b \b");
+                     fflush (stdout);
+
+                     inputLength--;
+                  }
+               }
+               else
+               {
+                  if(inputLength < sizeof(s_input) - 1)
+                  {
+                     putchar(ch);
+                     fflush(stdout);
+
+                     s_input[inputLength] = ch;
+                     inputLength++;
+                  }
+               }
+            }
+#endif
+            else if(fdsReady < 0) // connection lost
+            {
+               isQuit = true;
+            }
          }
       }
    }
@@ -1492,14 +1558,22 @@ void runConsumer(int argc, char **argv)
       {
          remoteAddr.sin_family = AF_INET;
          remoteAddr.sin_port = htons((unsigned short)(port & 0xFFFF));
+#if defined (_WIN32) || defined(WIN32)
          remoteAddr.sin_addr.S_un.S_addr = uladdr;
+#else
+         remoteAddr.sin_addr.s_addr = uladdr;
+#endif
 
          printf_s("connecting to %s:%d...\n", inet_ntoa(remoteAddr.sin_addr), port);
 
          sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
          result = connect(sock, (struct sockaddr *)&remoteAddr, sizeof(remoteAddr));
 
+#if defined (_WIN32) || defined(WIN32)
          if(result != SOCKET_ERROR)
+#else
+         if(result == 0)
+#endif
          {
             bzero(session);
             session.sock = sock;

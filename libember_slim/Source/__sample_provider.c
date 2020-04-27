@@ -12,8 +12,20 @@
 #include <limits.h>
 #include <time.h>
 
+#if defined (_WIN32) || defined(WIN32)
 //$$ MSVCRT specific
 #include <WinSock2.h>
+#else
+#include <arpa/inet.h>
+#define SOCKET int
+#define closesocket close
+#define _strdup strdup
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/ip.h>
+#include <netinet/tcp.h>
+#include <unistd.h>
+#endif
 
 #include "emberplus.h"
 #include "emberinternal.h"
@@ -102,7 +114,12 @@ static void collectPpmData()
    *(berint *)&_streams[1].streamValue.choice.octets.pOctets[4] = ((rand() % 256) - 255) * 32; // from -255 to 0 in db/32
 
    stringCopy(_streams[2].streamValue.choice.pString, STREAMS_MAX_STRING_LENGTH, "abc");
+
+#if defined (_WIN32) || defined(WIN32)
    _itoa_s(rand() % 100, &_streams[2].streamValue.choice.pString[3], STREAMS_MAX_STRING_LENGTH - 3, 10);
+#else
+   snprintf (&_streams[2].streamValue.choice.pString[3], STREAMS_MAX_STRING_LENGTH - 3, "%d", rand() % 100);
+#endif
 }
 
 
@@ -608,7 +625,6 @@ static void handleClient(SOCKET sock)
    byte buffer[64];
    int read;
    const int rxBufferSize = 1024; // max size of unfamed package
-   const struct timeval timeout = {0, 50 * 1000}; // 50 milliseconds timeout for select()
    const int noDelay = 1;
    const int streamBufferSize = 128;
    fd_set fdset;
@@ -634,11 +650,12 @@ static void handleClient(SOCKET sock)
 
    while(true)
    {
+      struct timeval timeout = {0, 50 * 1000}; // 50 milliseconds timeout for select()
       FD_ZERO(&fdset);
       FD_SET(sock, &fdset);
 
       // wait for input, if none received -> send ppm data
-      fdsReady = select(1, &fdset, NULL, NULL, &timeout);
+      fdsReady = select(sock+1, &fdset, NULL, NULL, &timeout);
 
       if(fdsReady == 1) // socket is ready to read
       {
@@ -676,16 +693,20 @@ static void handleClient(SOCKET sock)
 
 static void initSockets()
 {
+#if defined (_WIN32) || defined(WIN32)
    //$$ MSVCRT specific
    WSADATA wsaData;
 
    WSAStartup(MAKEWORD(2, 2), &wsaData);
+#endif
 }
 
 static void shutdownSockets()
 {
+#if defined (_WIN32) || defined(WIN32)
    //$$ MSVCRT specific
    WSACleanup();
+#endif
 }
 
 static void acceptClient(int port)
